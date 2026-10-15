@@ -1,0 +1,11 @@
+node_modules/
+.build/
+*.mdb
+*.accdb
+*.laccdb
+*.ldb
+*.env*
+config.local.js
+test-results/
+private/
+*.log
