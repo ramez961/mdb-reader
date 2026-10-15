@@ -1,12 +1,44 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="referrer" content="no-referrer"><title>Access Pocket · Local MDB reader</title><link rel="stylesheet" href="style.css"></head>
-<body><header><a href="./" class="brand"><span class="mark">A</span> Access Pocket</a><span class="tag">READ-ONLY PROTOTYPE</span></header>
-<main><section class="intro"><p class="eyebrow">YOUR DATABASE, ON YOUR PHONE</p><h1>A little window<br>into your Access file.</h1><p class="lead">Choose your MDB from Files, browse a table, and search in small steps. Your database stays on your device.</p></section>
-<section class="panel" aria-labelledby="source-title"><div class="section-heading"><span class="step">01</span><h2 id="source-title">Choose your database</h2></div>
-<p id="source-name">No database selected</p><input id="file" type="file" accept=".mdb,.accdb" hidden><div class="actions"><button id="choose">Choose from Files</button><button id="change" class="secondary" hidden>Change database</button><button id="forget" class="quiet" hidden>Forget database</button></div>
-<p class="hint">Nothing is uploaded. A file in iCloud or Drive may download to your phone first. Select it again after closing or reloading this page.</p>
-<details><summary>Optional: connect a private Google Drive file</summary><p class="hint">Requires Google setup in config.js. A link alone does not grant access: select the file in Google Picker first. The file choice is remembered only in this browser. Tokens and results are never saved.</p><label for="drive-link">Google Drive file link</label><input id="drive-link" type="url" placeholder="Paste your own Drive file link" autocomplete="off"><div class="actions"><button id="drive-connect" class="secondary">Connect remembered / pasted file</button><button id="drive-pick" class="secondary">Select with Google Picker</button></div><p class="hint">Keep the file restricted in Drive. Anyone-with-link sharing is not private. This reader only requests file metadata and bytes.</p></details></section>
-<section id="search-panel" class="panel" hidden aria-labelledby="search-title"><div class="section-heading"><span class="step">02</span><h2 id="search-title">Browse & search</h2></div><div class="fields"><div><label for="table">Table</label><select id="table"></select></div><div><label for="column">Search field</label><select id="column"></select></div><div><label for="mode">Match</label><select id="mode"><option value="contains">Contains</option><option value="equals">Exact value</option></select></div><div><label for="query">Value</label><input id="query" autocomplete="off" placeholder="Leave empty to browse"></div></div><p class="hint" id="table-info"></p><div class="actions"><button id="search" disabled>Search first pages</button><button id="continue" class="secondary" hidden>Search next pages</button><button id="cancel" class="quiet" hidden>Stop</button></div><p class="hint">Each step reads up to 128 data pages and keeps at most 50 matches. This prototype scans pages; it does not yet use Access indexes.</p></section>
-<section class="status" aria-live="polite" aria-atomic="true"><span id="state">Ready when you are.</span><small id="metrics"></small></section><section id="results-panel" class="panel" hidden><h2>Results from this step</h2><p id="coverage"></p><div id="results"></div></section>
-<footer>Files are opened for reading only. Access forms, reports, macros and VBA do not run here. This is the first browse/search prototype; your original search screen still needs to be recreated.</footer></main>
-<script type="module" src="app.mjs"></script></body></html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="referrer" content="no-referrer"><title>معلومات عن السيارات</title><link rel="stylesheet" href="style.css"></head>
+<body><main>
+<section class="source-bar" aria-label="ملف قاعدة البيانات">
+  <div><strong>قاعدة بيانات السيارات</strong><p id="source-name">اختر ملف قاعدة البيانات من جهازك</p></div>
+  <input id="file" type="file" accept=".mdb,.accdb" hidden>
+  <div class="source-actions"><button id="choose">اختيار ملف من Files</button><button id="change" hidden>تغيير قاعدة البيانات</button><button id="forget" hidden>نسيان قاعدة البيانات</button><button id="cancel" class="danger" hidden>إيقاف البحث</button></div>
+  <p class="source-note">قراءة فقط · لا يتم رفع الملف · قد يلزم تنزيل الملف السحابي أولاً وإعادة اختياره عند فتح الصفحة مجدداً.</p>
+</section>
+<section class="access-window" aria-labelledby="vehicle-title">
+  <div class="window-caption">معلومات عامة <span>للقراءة فقط</span></div>
+  <div class="title-band"><h1 id="vehicle-title">معلومات عن السيارات</h1></div>
+  <div class="record-grid" id="record-fields" aria-label="بيانات السيارة"></div>
+  <div class="record-status"><label><input id="out-of-service" type="checkbox" disabled> أنقاض</label><span id="record-position">لا توجد نتيجة معروضة</span></div>
+  <div class="toolbar">
+    <div class="search-actions"><button class="search-action" data-search="general" disabled>بحث عام…</button><button class="search-action" data-search="name" disabled>الاسم</button><button class="search-action" data-search="chassis" disabled>الهيكل</button><button class="search-action" data-search="engine" disabled>المحرك</button></div>
+    <nav class="record-nav" aria-label="التنقل بين نتائج الدفعة الحالية" dir="ltr"><button id="first" aria-label="أول نتيجة في الدفعة" title="أول نتيجة في الدفعة" disabled>⏮</button><button id="previous" aria-label="النتيجة السابقة في الدفعة" title="النتيجة السابقة في الدفعة" disabled>◀</button><button id="next" aria-label="النتيجة التالية في الدفعة" title="النتيجة التالية في الدفعة" disabled>▶</button><button id="last" aria-label="آخر نتيجة في الدفعة" title="آخر نتيجة في الدفعة" disabled>⏭</button></nav>
+  </div>
+</section>
+<section class="search-status" aria-live="polite" aria-atomic="true"><p id="state">اختر ملفك، ثم اضغط «بحث عام» لإدخال شروط البحث.</p><p id="coverage"></p><small id="metrics"></small><div class="continuation"><button id="continue" hidden>متابعة البحث في الصفحات التالية</button><button id="browse" disabled>عرض أول السجلات</button></div></section>
+<details class="help"><summary>عن البحث والملف</summary><p>الأسهم تتنقل بين نتائج الدفعة الحالية فقط، حتى 50 نتيجة. متابعة البحث تستبدل الدفعة المعروضة ولا تحتفظ بكل السجلات في الذاكرة. نتيجة فارغة في بحث جزئي لا تعني عدم وجود تطابق في بقية الملف.</p><p>المعلومات تُعرض من الملف كما هي. خانة «تاريخ الولادة» تعرض الحقل الأصلي من دون حساب تاريخ جديد. لا تُشغّل الصفحة نماذج Access أو VBA. يلزم اختبار الأداء على iPhone.</p></details>
+<details class="help"><summary>اختياري: ملف Google Drive خاص</summary><p>يتطلب إعداد Google في config.js. اختيار الملف من Files يعمل من دون هذا الإعداد. رابط الملف لا يمنح صلاحية الوصول؛ اختره عبر Google Picker عند الحاجة. أبقِ مشاركة الملف مقيّدة.</p><label for="drive-link">رابط ملفك في Drive</label><input id="drive-link" type="url" dir="ltr" autocomplete="off"><div class="source-actions"><button id="drive-connect">الاتصال بالملف المحفوظ أو الرابط</button><button id="drive-pick">اختيار عبر Google Picker</button></div></details>
+<dialog id="search-dialog" aria-labelledby="search-title">
+  <form id="search-form" autocomplete="off">
+    <div class="dialog-caption"><h2 id="search-title">بحث عام</h2><button id="close-dialog" type="button" aria-label="إغلاق البحث">×</button></div>
+    <section data-mode="general" class="criteria">
+      <div class="plate-line"><label class="criterion"> <span>الرقم</span><input name="plate" inputmode="numeric" aria-label="الرقم"></label><label class="criterion"><span>الرمز</span><input name="code" list="codes" aria-label="الرمز"></label></div>
+      <label class="criterion"><span>وجهة الاستعمال</span><input name="usage" list="usages"></label>
+      <label class="criterion"><span>الماركة</span><input name="make" list="makes" id="make-input"></label>
+      <label class="criterion"><span>الطراز</span><input name="model" list="models" id="model-input"></label>
+      <label class="criterion"><span>اللون</span><input name="color" list="colors"></label>
+      <div class="criterion year-range"><span>سنة الصنع</span><div class="year-inputs"><label>من<input name="yearFrom" inputmode="numeric"></label><label>إلى<input name="yearTo" inputmode="numeric"></label></div></div>
+      <p class="dialog-note" id="lookup-note">اترك أي خانة فارغة لتجاهلها. جميع الشروط المدخلة مطلوبة معاً؛ السنوات تشمل طرفَي النطاق.</p>
+    </section>
+    <section data-mode="name" class="criteria" hidden><label class="criterion"><span>الاسم</span><input name="firstName"></label><label class="criterion"><span>الشهرة</span><input name="surname"></label><label class="criterion"><span>اسم الأم</span><input name="mother"></label><p class="dialog-note">يبحث عن النص المدخل داخل كل حقل. جميع الخانات المعبأة مطلوبة معاً.</p></section>
+    <section data-mode="chassis" class="criteria" hidden><label class="criterion"><span>رقم الهيكل</span><input name="chassis" dir="auto"></label><p class="dialog-note">يبحث عن أرقام أو نص يحتوي عليه رقم الهيكل.</p></section>
+    <section data-mode="engine" class="criteria" hidden><label class="criterion"><span>رقم المحرك</span><input name="engine" dir="auto"></label><p class="dialog-note">يبحث عن أرقام أو نص يحتوي عليه رقم المحرك.</p></section>
+    <p id="form-error" role="alert"></p>
+    <div class="dialog-footer"><button type="submit" class="find-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h5v3h6V6h5l3 12v4h-8v-7H9v7H1v-4L4 6Zm1-4h3v3H5V2Zm11 0h3v3h-3V2Z"/></svg> بحث</button><button type="reset">مسح الشروط</button><span>تظهر النتيجة في النافذة الرئيسية</span></div>
+  </form>
+</dialog>
+<datalist id="codes"></datalist><datalist id="usages"></datalist><datalist id="makes"></datalist><datalist id="models"></datalist><datalist id="colors"></datalist>
+</main><script type="module" src="app.mjs"></script></body></html>

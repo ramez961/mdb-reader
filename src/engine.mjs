@@ -1,7 +1,9 @@
 import MDBReader from '../vendor.mjs';
 import {Buffer} from '../vendor-buffer.mjs';
+import {compileFilters} from './vehicle.mjs';
 
 export class MissingChunk extends Error { constructor(offset){super('Chunk required');this.offset=offset;} }
+export class ReadBudgetError extends Error { constructor(){super('Read budget reached. Start a new bounded search.');} }
 /** Async fetch outside the parser; synchronous parser only sees cached chunks. */
 export class ChunkSource {
   constructor(size,fetchRange,{chunkSize=65536,maxChunks=64,maxBytes=16*1024*1024}={}) {
@@ -27,7 +29,7 @@ export class ChunkSource {
   copy(target,targetStart,start,end){return this.slice(start,end).copy(target,targetStart);}
   async load(offset) {
     const end=Math.min(offset+this.chunkSize,this.size);
-    if(this.bytes+end-offset>this.maxBytes) throw Error('Read budget reached. Start a new bounded search.');
+    if(this.bytes+end-offset>this.maxBytes) throw new ReadBudgetError();
     const bytes=Buffer.from(await this.fetchRange(offset,end));
     if(bytes.length!==end-offset)throw Error('Server returned an incorrect range length');
     this.bytes+=bytes.length;this.requests++;
@@ -50,23 +52,30 @@ export async function describe(source,reader,name) {
   const table=await source.run(()=>reader.getTable(name));
   return {table,columns:table.getColumns(),rowCount:table.rowCount,pageCount:table.pageCount};
 }
-export async function scan(source,table,{column,query='',mode='contains',cursor={page:0,row:0},pageLimit=128,resultLimit=50,timeLimit=12000,onProgress=()=>{}}) {
-  const columns=table.getColumns().filter(c=>!['binary','ole','memo','complex'].includes(c.type)).map(c=>c.name);
-  if(!columns.includes(column))throw Error('Choose a supported search column');
-  const text=String(query).toLocaleLowerCase();
+export async function scan(source,table,{column,query='',mode='contains',filters,projection,cursor={page:0,row:0},pageLimit=128,resultLimit=50,timeLimit=12000,onProgress=()=>{}}) {
+  const supported=table.getColumns().filter(c=>!['binary','ole','memo','complex'].includes(c.type)).map(c=>c.name);
+  const conditions=filters??(query===''?[]:[{column,op:mode,value:query}]);
+  if(filters===undefined&&!supported.includes(column))throw Error('Choose a supported search column');
+  const predicate=compileFilters(conditions,supported);
+  const columns=projection?[...new Set([...projection,...conditions.map(f=>f.column)])]:supported;
+  if(columns.some(name=>!supported.includes(name)))throw Error('Unsupported output field');
+  if(!Number.isInteger(cursor.page)||!Number.isInteger(cursor.row)||cursor.page<0||cursor.page>table.pageCount||cursor.row<0)throw Error('Invalid cursor');
   const matches=[];let examined=0,pages=0;let {page,row}=cursor;
-  const started=Date.now();
+  const started=Date.now();let stopReason;
   while(page<table.pageCount&&pages<pageLimit&&Date.now()-started<timeLimit) {
-    const records=await source.run(()=>table.readPage(page,columns));pages++;
+    let records;
+    try{records=await source.run(()=>table.readPage(page,columns));}catch(error){if(error instanceof ReadBudgetError){stopReason='byteBudget';break;}throw error;}
+    pages++;
     for(;row<records.length;row++) {
       const record=records[row];examined++;
-      const value=String(record[column]??'').toLocaleLowerCase();
-      if(query===''||(mode==='equals'?value===text:value.includes(text)))matches.push(record);
+      if(predicate(record))matches.push(record);
       if(matches.length>=resultLimit){row++;break;}
     }
     if(row>=records.length){page++;row=0;}
     onProgress({examined,pages});
     if(matches.length>=resultLimit)break;
   }
-  return {matches,examined,pages,cursor:{page,row},complete:page>=table.pageCount,stats:source.stats()};
+  const complete=page>=table.pageCount;
+  stopReason??=complete?'end':matches.length>=resultLimit?'resultLimit':pages>=pageLimit?'pageLimit':'timeLimit';
+  return {matches,examined,pages,cursor:{page,row},complete,stopReason,stats:source.stats()};
 }

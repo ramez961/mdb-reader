@@ -1,6 +1,6 @@
-# Access Pocket — local MDB reader prototype
+# معلومات عن السيارات — local MDB reader
 
-A static, read-only Microsoft Access table browser. The primary flow is **Choose from Files → choose a table and field → search → search next pages**. Each visitor supplies their own database. No database is bundled or uploaded by the local-file flow.
+A static, read-only Arabic RTL vehicle reader, recreated from the supplied Access form references. The primary flow is **اختيار ملف من Files → بحث عام… → enter combined criteria → بحث → the popup closes and the matching vehicle appears in the main form**. The arrows navigate matches in the current batch. There is no separate results-table screen. Each visitor supplies their own database; no database is bundled or uploaded by the local-file flow.
 
 ## Run locally
 
@@ -16,18 +16,20 @@ Open `http://127.0.0.1:4173`. This development preview listens only on this comp
 
 In repository **Settings → Pages**, choose **Deploy from a branch**, **main**, **/ (root)**, then save. The repository root contains the ready-to-serve static site. All app asset and worker paths are relative, suitable for `https://ramez961.github.io/mdb-reader/`. No Actions workflow, backend, database conversion, Google setup or build service is required for the local-file flow. The URL is usable only after the owner enables Pages and GitHub finishes deployment.
 
-On the iPhone, open the published site in Safari, tap **Choose from Files**, and choose the MDB. If Files shows a cloud provider, it may first download the entire file to the phone. For this large database, downloading to **On My iPhone** before choosing it is a useful device test. Device storage, cloud-provider behavior and Safari memory still need testing on the actual iPhone.
+On the iPhone, open the published site in Safari, tap **اختيار ملف من Files**, and choose the MDB. If Files shows a cloud provider, it may first download the entire file to the phone. For this large database, downloading to **On My iPhone** before choosing it is a useful device test. Device storage, cloud-provider behavior and Safari memory still need testing on the actual iPhone.
 
 ## What works and what remains
 
-- Open user tables and inspect scalar fields; exact-value or contains search; empty value browses rows.
+- The primary screen displays the `CARMDI` vehicle/owner fields using the original Arabic labels, blue captions, grey form and responsive layout. Incompatible files show a schema error rather than silently substituting another table. See [INTERFACE.md](INTERFACE.md) for mappings and search rules.
+- **بحث عام…** combines plate, code, usage, make, model, color and an inclusive manufacture-year range. Popups also support name, chassis and engine searches. On submit the popup closes and results return to the main form. Empty criteria or **عرض أول السجلات** browse from the start.
+- Lookup suggestions come from `CODE`, `UTILISATION`, `MARQUE` and `COULEUR`. Model suggestions use the selected make's `MARQUEID` to filter `TYPE`. Suggestions are capped; a complete value can also be typed. The database stays unchanged.
 - Read 64 KiB chunks with an LRU chunk cache capped at 4 MiB. Parsing runs in a Web Worker. Metadata, parser buffers, page arrays, JavaScript runtime and results consume additional memory; 4 MiB is **not** a total-memory claim.
 - Each search step scans at most 128 data pages, keeps at most 50 results and starts no more pages after 12 seconds. Time is checked between pages, so it is not a hard timeout. Each step also has an 8 MiB new-read budget. The initial open has a 16 MiB read budget.
-- **Search next pages** resumes from the exact page/row cursor. It replaces the displayed step's results to keep retained memory bounded. A partial search with zero matches does not mean the whole table has no match.
-- **Stop** terminates the worker immediately, clears the results and requires reopening. **Change database** replaces the current session after a new file is selected. **Forget database** drops the browser's selection and in-memory results; it does not delete the original file or revoke a Google grant.
+- **متابعة البحث في الصفحات التالية** resumes from the exact page/row cursor. It replaces the displayed batch to keep retained memory bounded. First/previous/next/last arrows refer to the current batch, never the whole table. A partial search with zero matches does not mean the whole table has no match. A byte-budget stop returns collected matches and its continuation cursor.
+- **إيقاف البحث** terminates the worker immediately, clears results and requires reopening. **تغيير قاعدة البيانات** replaces the current session after a new file is selected. **نسيان قاعدة البيانات** drops the browser's selection and in-memory results; it does not delete the original file or revoke a Google grant.
 - No edits, conversion, migrations, exports, service-worker caching, full offline database storage or saved search results.
-- Binary, OLE, memo and complex fields are omitted from search/display to avoid large values. Access SQL, joins, Access forms, reports, macros and VBA are not executed. This prototype is **not** the original search form. Recreating that screen needs its screenshot, field definitions and matching rules.
-- This is a sequential scan, **not an index-backed search**. A match near the end may require reading much of the database. The best next performance work is existing Jet-index traversal for the actual search fields, after those fields and indexes are known.
+- Binary, OLE, memo and complex fields are omitted from search/display to avoid large values. Access SQL, joins, Access forms, reports, macros and VBA are not executed. The visible form is a browser recreation of the screenshots; the original Access query/VBA definitions were not supplied. Combined filters use AND; see the documented assumptions in [INTERFACE.md](INTERFACE.md).
+- This is a sequential scan, **not an index-backed search**. A match near the end may require reading much of the database and multiple continuation steps. Existing Jet-index traversal for common search fields remains future performance work.
 - Real iPhone testing and compatibility with the newer database remain outstanding. Desktop Chromium success does not prove Safari success.
 
 Local file handles and names are not persisted. Closing/reloading the page requires choosing the local MDB again. Browser access does not provide reliable automatic reopening on iOS. The website itself requires a network connection to load; full offline use is not promised.
@@ -47,12 +49,12 @@ Only the selected Drive ID/resource key is stored in this browser's localStorage
 ```sh
 pnpm install --ignore-scripts
 pnpm build
-node --test --test-isolation=none tests/reader.test.mjs
+node --test --test-isolation=none tests/*.test.mjs
 ```
 
 Node 22+ is recommended. `pnpm build` bundles the pinned MIT-licensed `mdb-reader` 3.2.0 with a small bounded-page extension. The build adds `Table.pageCount` and `Table.readPage`, caps table-definition traversal and catalog rows, and supplies browser shims. The async chunk adapter retries a synchronous parse only when it encounters a missing chunk. It copies cached bytes before decoding, so parser mutations cannot corrupt cached pages.
 
-The unit tests use synthetic data and exercise eviction, immutable cached bytes, read caps, continuation correctness, partial-result reporting, strict Drive URL parsing, full-download rejection and oversized-stream cancellation. Run the optional local feasibility script only with a private file path passed at runtime:
+The 13 unit tests use synthetic data and exercise combined AND filters, numeric/Arabic digits, inclusive and one-sided year ranges, invalid criteria, name/chassis/engine matching, multi-page continuation without skipped/repeated records, retained matches after a byte-budget stop, cache eviction, transport caps and Drive URL parsing. Desktop Chromium UI tests used a separate synthetic MDB: combined filters produced 96 matches in batches of 50 and 46, the popup closed onto the main record, navigation and secondary search actions worked, and desktop/428px layouts were visually inspected. No real records were used in visual previews. Run the optional local feasibility script only with a private file path passed at runtime:
 
 ```sh
 node scripts/feasibility.mjs "path/to/private.mdb" 128

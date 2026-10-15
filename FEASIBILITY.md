@@ -39,4 +39,8 @@ For the eventual original search form, investigate traversal of existing MDB ind
 1. Owner enables GitHub Pages and tests Files selection on the actual iPhone 13 Pro Max.
 2. Verify opening, browsing, a known exact match, a no-match partial search, continuation, Stop, Change and Forget; watch for Safari reloads or memory pressure. Keep personal results out of screenshots shared publicly.
 3. Test the newer MDB separately.
-4. Obtain a screenshot of the original form with private values hidden, plus search fields and matching rules. Use that to implement the real interface and select an index strategy.
+4. The supplied main-form and general-search screenshots have now been implemented as an Arabic RTL browser interface. Compare the documented query assumptions and ambiguous raw field bindings with Access, then select an index strategy. See [INTERFACE.md](INTERFACE.md).
+
+## Arabic vehicle-form update
+
+The primary flow is now main record form → search popup → popup closes → matching record returns to the main form. Combined filters, inclusive year ranges and name/chassis/engine actions use the same bounded scan engine. A byte-budget stop preserves matches already found and returns the exact continuation cursor. Thirteen synthetic unit tests pass. Synthetic-MDB desktop Chromium testing verified 96 combined matches split into 50 and 46 without skipped/repeated records, main-form navigation, popup closure, dependent make/model suggestions and mobile/desktop layouts. The existing 1.48 GB consistency test was repeated after the predicate changes: 6,092 rows checked, 2,228,224 bytes read and a matching result, with source size/mtime unchanged. These remain desktop tests, not evidence of iPhone performance or exact Access query parity.
